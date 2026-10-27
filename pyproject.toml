@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "network-troubleshooting-agent"
+version = "0.1.0"
+description = "Local network troubleshooting agent for Huawei switches with inventory lookup and evidence correlation"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "Kabin Khadka" }]
+dependencies = [
+  "netmiko>=4.0.0",
+  "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
