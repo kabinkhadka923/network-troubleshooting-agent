@@ -9,6 +9,9 @@ class InventoryEntry:
     vendor: str
     os: str
     site: str = ""
+    interface: str = ""
+    paired_device: str = ""
+    paired_interface: str = ""
 
 
 @dataclass(frozen=True)

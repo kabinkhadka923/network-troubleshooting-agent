@@ -1,60 +1,58 @@
-import csv
-import ipaddress
-from pathlib import Path
-from typing import Iterable
+# network-troubleshooting-agent
 
-from .models import InventoryEntry
+Local network troubleshooting agent for Huawei switches with inventory lookup, SSH-ready architecture, and evidence correlation groundwork.
 
+This project is designed to:
 
-class InventoryManager:
-    def __init__(self, inventory_path: str | Path):
-        self.inventory_path = Path(inventory_path)
-        self._entries = self._load_inventory()
+- accept interface identifiers like `et-48.mkamaladi-sw4` and `gi-13.mchandragadi-dls-sw1`
+- validate the hostname and interface format exactly as specified
+- resolve the switch management IP from a local inventory CSV
+- support a Huawei-first command profile with room for Juniper and Cisco later
+- produce structured investigation reports
+- remain safe by using read-only, allowlisted commands only
+- support a quick daily check mode for ticket-friendly output
 
-    def _load_inventory(self) -> dict[str, InventoryEntry]:
-        if not self.inventory_path.exists():
-            raise FileNotFoundError(f"Inventory file not found: {self.inventory_path}")
+Quick start
 
-        entries: dict[str, InventoryEntry] = {}
-        with self.inventory_path.open("r", newline="", encoding="utf-8") as handle:
-            reader = csv.DictReader(handle)
-            required_fields = {"hostname", "management_ip", "vendor", "os"}
-            if not reader.fieldnames:
-                raise ValueError("Inventory CSV is empty or missing a header row.")
-            missing = required_fields - set(reader.fieldnames)
-            if missing:
-                raise ValueError(f"Inventory CSV is missing required columns: {sorted(missing)}")
+1. Create a virtual environment and install dependencies:
+   python -m venv .venv
+   .venv\Scripts\activate
+   python -m pip install -r requirements.txt
 
-            for row_index, row in enumerate(reader, start=2):
-                hostname = (row.get("hostname") or "").strip()
-                if not hostname:
-                    continue
+2. Run a quick daily check:
+   python -m network_agent.cli quickcheck gi-13.mchandragadi-dls-sw1
 
-                management_ip = (row.get("management_ip") or "").strip()
-                vendor = (row.get("vendor") or "").strip()
-                os_name = (row.get("os") or "").strip()
-                site = (row.get("site") or "").strip()
+3. Resolve an interface:
+   python -m network_agent.cli resolve gi-13.mchandragadi-dls-sw1
 
-                try:
-                    ipaddress.ip_address(management_ip)
-                except ValueError as exc:
-                    raise ValueError(f"Row {row_index}: invalid management_ip '{management_ip}'") from exc
+4. Run interactive mode:
+   python -m network_agent.cli interactive
 
-                if hostname.lower() in entries:
-                    raise ValueError(f"Duplicate hostname in inventory: {hostname}")
+Example interface mappings
 
-                entries[hostname.lower()] = InventoryEntry(
-                    hostname=hostname,
-                    management_ip=management_ip,
-                    vendor=vendor,
-                    os=os_name,
-                    site=site,
-                )
+- `et-48.mkamaladi-sw4` -> hostname `mkamaladi-sw4`, physical interface `Ethernet 0/0/48`
+- `gi-13.mchandragadi-dls-sw1` -> hostname `mchandragadi-dls-sw1`, physical interface `GigabitEthernet 0/0/13`
 
-        return entries
+Daily quickcheck workflow
 
-    def get_entry(self, hostname: str) -> InventoryEntry | None:
-        return self._entries.get(hostname.lower())
+The `quickcheck` output is designed for daily support tasks:
 
-    def list_entries(self) -> Iterable[InventoryEntry]:
-        return self._entries.values()
+- resolve inventory entry
+- validate interface naming
+- capture pairing metadata if available
+- generate a concise support-friendly summary
+- write TXT, JSON, and CSV reports
+
+Never guess the paired device or interface. When pairing information is absent in inventory, the report must say:
+
+PAIRING: UNKNOWN
+Reason: No pairing information available in inventory.
+
+Inventory format
+
+The local CSV optionally includes pair metadata:
+
+hostname,management_ip,vendor,os,interface,paired_device,paired_interface,site
+mchandragadi-dls-sw1,10.10.10.11,Huawei,VRP,GE0/0/13,customer-sw1,GE0/0/1,datacenter-a
+
+The project intentionally does not guess a management IP or vendor. It resolves both from a trusted inventory file.
